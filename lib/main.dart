@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 
 void main() => runApp(MyApp());
+
+Future<String> loadAsset() async {
+  return await rootBundle.loadString('secrets.json');
+}
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -45,6 +54,8 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  String _temperature = '';
+  String _date = '';
 
   void _incrementCounter() {
     setState(() {
@@ -54,6 +65,38 @@ class _MyHomePageState extends State<MyHomePage> {
       // _counter without calling setState(), then the build method would not be
       // called again, and so nothing would appear to happen.
       _counter++;
+
+      Future<http.Response> fetchPost(key) {
+        var url = 'https://api.nature.global/1/devices';
+        var resp = http.get(url, headers: {
+            HttpHeaders.contentTypeHeader: "application/json",
+            HttpHeaders.authorizationHeader: "Bearer " + key
+          });
+        return resp;
+        //     .then((response) {
+        //   print("Response status: ${response.statusCode}");
+        //   print("Response body: ${response.body}");
+        // }).catchError((err) {
+        //   print(err);
+        // });
+      }
+
+      print("start");
+      loadAsset().then((secretJson) {
+        var key = jsonDecode(secretJson)['authorizationHeader'];
+        fetchPost(key).then((resp) {
+          print(resp);
+          print(resp.body);
+          var xs = jsonDecode(resp.body);
+          print(xs);
+          List<dynamic> lis = jsonDecode(resp.body);
+          print('raw json => ${resp.body}');
+          print('室温 => ${lis[0]['newest_events']['te']['val']}');
+          _temperature = '室温 => ${lis[0]['newest_events']['te']['val']}';
+          _date = 'date => ${lis[0]['newest_events']['te']['created_at']}';
+        });
+      });
+      print("end");
     });
   }
 
@@ -96,6 +139,14 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             Text(
               '$_counter',
+              style: Theme.of(context).textTheme.display1,
+            ),
+            Text(
+              _temperature,
+              style: Theme.of(context).textTheme.display1,
+            ),
+            Text(
+              _date,
               style: Theme.of(context).textTheme.display1,
             ),
           ],
